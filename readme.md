@@ -4,124 +4,44 @@
 
 1. A loud percussive noise that is strident usually undesirable and 
    disruptive
-2. One of the name of a group of Jackdaws (corvus monedula) referring
+2. One of the names of a group of Jackdaws (corvus monedula) referring
    to the clipped chirping noises they make in large groups from time
    to time.
 
 ## What is this thing?
 
-Clatter is a simple framework for creating finite state automata used
-on the Concurrent Sequential Processes model used in Newsqueak and Go
-channels.
+Clatter is a code generator framework to allow the easier implementation of the programming model described in Rob Pike's paper [The Implementation of Newsqueak](doc/impl-new-TR.pdf) published in July 1990
 
-Clatter operates similarly to modular routing systems like used in 
-software sound mixing systems, but for any kind of data at all, and 
-inspired by the Newsqueak GUI.
+The name refers to the idea of a programming model that resembles the rapid chatter of Jackdaws especially in the crepuscular hours. Channels and goroutines in Go are very light and efficient, so they can be used exactly the same way as function and return... lots of little fast messages flying through and being mutated in each node to generate the outputs they forward to the next stage in processing. If it had a sound, it would be the 'caw' of a jackdaw, highly concurrent and directional.
 
-## Architecture
+Further implementation to the full spec is planned but for now this application applies text transformations to encapsulate functions inside a wrapper called a 'node' and instead of having parameters and return values, these are implicitly transformed into a single slot buffered channel which has the property of allowing one message to be sent that can theoretically be also received in the same goroutine because the buffer allows it to not block. This will be part of the node wrapper syntax, and from the parameters it generates a list of channels names as global variables in a single package containing only the node's code.
 
-### Sources
+From there, the package hierarchy is generated, the standard requirement of imports based on the lower case version of the node's name, and Node() (no parameters or return as all in and out goes through the package global channels)
 
-A source is an event listener or generator, either tied to a hardware
-input queue or derivative of one (such as tickers)
+The reason for this structure and the expedience of making it a generator instead of a full interpreter, for now, is this is only one step away from Go so there is a ready market for adoption. It also assists in the future development plans of Plan 9 Crypto, which is a realisation of something like the Plan 9 operating system, built on Newsqueak, with its implicit pure function, no pointers, no shared data and copies only when needed.
 
-### Sinks
+There is no doubt that functional programming methodology is a fad at this time with a JVM targeting Elixir, and every language now including closures and functions as variables. However, less emergent is concurrent and parallel programming. The biggest amount of use of these models is in back end servers that run the 'cloud' through systems like Docker and Kubernetes, which encapsulate sometimes very small services neatly and allow greater numbers of options for what to do with this.
 
-A sink is a function which accepts messages from Sources, across a Wire
+Clatter is based on the same principle, to put everything into small neat boxes that are easy to understand, complete, and scalable from one to a billion concurrent threads given the memory. Channels incur some overhead but they compensate for this in their latency properties and reduction of the need for preemptive context switching.
 
-### Wires
+## Roadmap
 
-A wire is something like a subscriber in the Pub/Sub model, and something like a priority queue. It is implemented using a dynamic array (slice) of Sinks, which can be attached and detached to a Source and delivers the message to a Sink.
+### v0.1.0
+ Implement code generator that simply extends Go syntax with a new type of function that runs as a goroutine in parallel with all other nodes in the application, and default designated 'main' package of course defines command entry points and thus units of compilation, also ensuring that generated binaries have no unused code in them by default. 
+ 
+ Thus every node is a package, and inside one can ostensibly create multiple functions, or closures, but the pattern of how a node executes helps discourage excessively long algorithms, as it is my opinion that 500 lines is about as long as a single file should get.
 
-## Implementation notes
+### v0.2.0 
+Create a full showcase implementation of a simple but usable multi-platform GUI that transparently can run on any hardware natively for a target available to the Go compiler, now including WebAssembly, with an extension that creates http/json RPC endpoints attached to channels through an additional type qualifier symbol.
+ 
+ For native, an extension to the syntax to cause separate binaries to be created and attached using a standard input/output pipe for highly parallel workloads (streaming, cryptocurrency mining, and so on), and with the same syntax as the remote for the WebAssembly target, except with package paths.
+ 
+### v0.3.0
+Implement an additional extension to the code generation that implements the pure by-value channel messaging between nodes, and a switchable debug and profile to create a tree of the mutations of each variable as it passes between nodes, and the timestamp of entry into a node in the latter.
 
-Due to the 'limitations' of Go with regard to generics, instead of 
-generics a lightweight, decode-on-demand interface based on the 
-'simplebuffer' found in github.com/p9c/pod/pkg/simplebuffer
+Eliminate the need for explicit variable declaration by symbol categorisation to generate appropriate declarations, and creating a node context structure with all of its variables. Implicitly a one to one relationship between names inside a node elimiates shadowing bugs which equate to reinitialising a the same symbol. This will include everything inside closures as well, which can be given names by standard func prefix instead of a variable declaration, as is already possible with const.
 
-The initial alpha target is a fully functional, non-optimised 
-implementation that does not tinker with unsafe functions but in 
-Beta it is intended that chunks of bytes can be imputed into their 
-type by creating a pointer to that type at the location of the first 
-byte of the value. So 4 bytes would be interpreted there as a 32 
-bit integer, for example, and its type imputed as such.
+Extend and generalize socket implementation to allow custom transports and filter chains to be created for various kinds of protocol. Nodes channels then attach to these with a prefix declaration naming the handler node that does the connection type, over a bidirectional channel that is sent and listens on both sides in two goroutines.
 
-The rationale for this is that the complexity of generics anyway is excessive and has been left out of Go intentionally from its 1.0, as, underneath all the other reasons, they cannot be implemented with a single pass compiler like Go, and this strategy allows much faster compilation times, a key goal of Go.
-
-It is the author's opinion that a methodology and set of small simple tools can replace the utility of generics without requiring a two pass compilation process, and will use `go:generate` in a novel way, to both build generated generic implementations and later, the zero copy unsafe re-typing code that will allow all of the features of generics to be used while combining the generate/bundle/compile process into one command:
-
-```go generate ./...```
-
-and depending on an environment variable places it in a path or as with `go build` in the pwd.
-
-## Neurobiomimicry
-
-I believe I am coining a word here. Up until recently, the dominant 
-model used for computing is based on the illusory unity of processing
-inside computers, illusory because it is simply such short delays 
-between many processes that it appears to be instantaneous, but 
-being that computing circuits have now hit the physical limit of 
-frequency vs energy vs resistance, concurrency of processing, and
-problems caused by failure of synchronisation have become very 
-visible in computer network systems.
-
-Biological signalling and computation systems have long ago solved 
-these problems by various means and to various degrees. Slow 
-converging consensus, more intelligence at the edge of the system, 
-and all those Distributed Systems ideas are really, exactly, as 
-I am calling it - Neurobiomimicry.
-
-The definition extends beyond the internal pathways inside individual
-animals, and includes the synchronisation and coordination systems 
-that you find in social networks and ecosystems.
-
-### A 'new' model for building Finite State Automata
-
-It is not my original idea at all. In the 1985 paper by Rob Pike on 
-the implementation of the language Newsqueak (no relation to 
-Smalltalk, it is a language designed for concurrent functional 
-programming specifically aimed at user input/output processing).
-
-I only recently became fully competent in understanding and building algorithms based on the CSP model used in Go, and after reading about the implementation of Newsqueak a whole swathe of new ideas connected themselves together.
-
-Finite State Automata are basically something along similar lines to the Rube Goldberg Machine - complex chains of devices and objects that trigger reactions that can split into parallel paths, merge, and of course in some pathway, finally terminate.
-
-The conventional model for this kind of processing, as seen in most language translators and compilers is complicated, requires complex, domain specific grammars, and is thus the preserve of those with the luxury of time needed to acquire these skills and resources.
-
-However, the process of compilation is a multi-stage, branched tree that requires different responses depending on the results of previous processing. The linear, procedural syntax of most languages used to build compilers is quite incompatible with this and creates excessive complexity, thus the special languages and requirement for, as the grammar of the language grows more complex, the use of conventionally artificial intelligence techniques to allow disambiguation, it requires expensive, multi-pass compilation processes.
-
-## Enter Newsqueak
-
-Newsqueak was basically one of the first implementations of the 
-concept of Concurrent Sequential Process model of programming. It is 
-defined by the use of atomic load/unload FIFO queues (channels) and
-coroutines, which are a variant of subroutine that allows processing
-to move quickly from one task to another without preemption and 
-with a lower administrative overhead as found in preemptive 
-multitasking schedulers.
-
-It does depend on correctness in the code, but the payoff has proven
-to be so much greater than you would naively expect. In certain 
-kinds of computation systems, synchronisation becomes the biggest 
-performance limiter. Notably, distributed network systems. But the 
-same concurrency exists in every computing system, the difference 
-between them is only latency, not in this fundamental feature. 
-   
-Something that jumped out at me when I was reading [the Newsqueak 
-Implementation paper](https://swtch.com/~rsc/thread/newsquimpl.pdf) 
-was that I clearly saw that an ingredient missing from CPU designs 
-that facilitates fast implementations of an interpretive language 
-system with concurrency is Compare and Swap operations. These 
-operations take place in one instruction cycle and switch a value 
-from one to another without an intermediate read/decide step in 
-between. The implementations of race free channels and mutexes is nowadays often made with these operations, and it can essentially eliminate the high cost of context switching, ameliorating the performance hit while switching from one process to another, if the entire scheduling system is based on CSP.
-
-## Clatter is not just for GUIs
-
-Clatter can be used thus to implement a compiler, a GUI, a kernel process scheduler, and even low overhead memory allocation.
-
-Go is not a perfect language for this, as such an implementation basically will require replacing infix operators with methods, and to implement Copy on Write passing of values, which underneath the syntax of the language, requires the use of CaS and transforms ordinary variable declaration and assigment semantics from the convenient infix operator `=` to use functions instead. It can be done in Go, however, especially for mathematics, results in a syntax that resembles Lisp rather than C. Infix operators are not native to CPU designs, as they are either verb subject object or subject object verb, similar to the distinction between German and English grammars - English uses infixes (known as prepositions, and, or, to from etc) where german has a fairly rigid format of subject object verb, which makes Lisp like German and C is like English.
-
-Localisation of computer programming languages is a thorny problem and results in an unfair advantage of users of natural prepositional languages versus those that use lisp-like notations which also are found in Reverse Polish Notation, in the opposite sequence. 
-
-All of these syntax elements are essentially concurrent. Until you have the three either explicitly or implicitly, it is not a statement or expression. So concurrent models have a power that allows you to combine sequential operations in ways that are intuitive to our brains, but for some people foreign because of their native language, which changes the way in which you serialize the concurrency of the three elements. 
+### ...
+That's probably enough for now.
