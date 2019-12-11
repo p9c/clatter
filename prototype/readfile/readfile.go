@@ -26,15 +26,14 @@ type Node struct {
 }
 
 func New() (n *Node) {
-	// init
 	n = &Node{
 		Quit:     make(chan struct{}, 1),
+		Filename: make(<-chan string, 1),
 		Buffer:   make(chan<- Buffer, 1),
 	}
 	go func() {
 	out:
 		for {
-			// select
 			select {
 			case filename := <-n.Filename:
 				// caller is requesting to read a file
@@ -45,8 +44,5 @@ func New() (n *Node) {
 			}
 		}
 	}()
-	// quit
 	return
 }
-
-// func (n *Node)
